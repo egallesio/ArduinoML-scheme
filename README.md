@@ -1,7 +1,7 @@
 <!--
             Author: Erick Gallesio
      Creation date: 30-Nov-2017 16:05
-  Last file update:  1-Dec-2017 15:07 (eg)
+  Last file update:  1-Dec-2017 17:52 (eg)
 -->
 
 
@@ -21,18 +21,20 @@ The following example exhibits the various aspects of the
 `define-application` special form:
 
 ```scheme
-(define-application Simple
-  :bricks
-  ((button sensor 9)
-   (led actuator 12))
+(define-application Example_with_two_leds
+  :sensors
+  ((button 9))
+  :actuators
+  ((led1 11)
+   (led2 12))
   :states
-  ((on  (set led "HIGH"))
-   (off (set led "LOW")))
-  :initial
-  off
+  ((on  (set! led1 "HIGH") (set! led2 "LOW"))
+   (off (set! led1 "LOW")  (set! led2 "HIGH")))
   :transitions
-  ((on -> off when_is button "HIGH")
-   (off -> on when_is button "HIGH")))
+  ((on -> off when button "HIGH")
+   (off -> on when button "HIGH"))
+  :initial
+  off)
 ```
 
 ## Using the define-application form
@@ -84,15 +86,18 @@ long time = 0;
 long debounce = 200;
 
 int button = 9;
-int led = 12;
+int led1 = 11;
+int led2 = 12;
 
 void setup() {
-  pinMode(button, INPUT);
-  pinMode(led, OUTPUT);
+  pinMode(button, "INPUT");
+  pinMode(led1, "OUTPUT");
+  pinMode(led2, "OUTPUT");
 }
 
 void state_on() {
-  digitalWrite(led, HIGH);
+  digitalWrite(led1, HIGH);
+  digitalWrite(led2, LOW);
   boolean guard =  millis() - time > debounce;
   if (digitalRead(button) == HIGH  && guard) {
     time = millis()
@@ -103,7 +108,8 @@ void state_on() {
 }
 
 void state_off() {
-  digitalWrite(led, LOW);
+  digitalWrite(led1, LOW);
+  digitalWrite(led2, HIGH);
   boolean guard =  millis() - time > debounce;
   if (digitalRead(button) == HIGH  && guard) {
     time = millis()

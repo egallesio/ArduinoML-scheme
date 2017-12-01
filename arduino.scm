@@ -3,7 +3,7 @@
 ;;;;
 ;;;;           Author: Erick Gallesio [eg@unice.fr]
 ;;;;    Creation date: 26-Oct-2017 17:16
-;;;; Last file update:  1-Dec-2017 11:48 (eg)
+;;;; Last file update:  1-Dec-2017 17:46 (eg)
 ;;;;
 
 (define-macro (define-application names . clauses)
@@ -40,19 +40,15 @@
     (print "long time = 0;\n")
     (print "long debounce = 200;\n\n"))
 
-  (define (generate-globals bricks)
-    (for-each (lambda (x)
-                (print "int ~S = ~S;\n" (car x) (caddr x)))
-              bricks)
+  (define (generate-globals sensors actuators)
+    (for-each (lambda (x) (print "int ~S = ~S;\n" (car x) (cadr x)))
+              (append sensors actuators))
     (print "\n"))
 
-  (define (generate-setup bricks)
+  (define (generate-setup sensors actuators)
     (print "void setup() {\n")
-    (for-each (lambda (x)
-                (print "  pinMode(~S, ~A);\n"
-                        (car x)
-                        (if (eq? (cadr x) 'sensor) "INPUT" "OUTPUT")))
-              bricks)
+    (for-each (lambda (x) (print "  pinMode(~S, \"INPUT\");\n"  (car x))) sensors)
+    (for-each (lambda (x) (print "  pinMode(~S, \"OUTPUT\");\n" (car x))) actuators)
     (print "}\n\n"))
 
   (define (find-transition name transitions)
@@ -97,14 +93,13 @@
   ;;; Macro body starts here
   ;;;
 
-  (let ((bricks      (keyword-get clauses ':bricks '()))
+  (let ((sensors     (keyword-get clauses ':sensors '()))
+        (actuators   (keyword-get clauses ':actuators '()))
         (states      (keyword-get clauses ':states '()))
         (transitions (keyword-get clauses ':transitions '()))
         (initial     (keyword-get clauses ':initial '())))
     (generate-header)
-    (generate-globals bricks)
-    (generate-setup   bricks)
+    (generate-globals sensors actuators)
+    (generate-setup   sensors actuators)
     (generate-states  states transitions)
     (generate-loop    initial)))
-
-
