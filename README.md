@@ -1,7 +1,7 @@
 <!--
             Author: Erick Gallesio
      Creation date: 30-Nov-2017 16:05
-  Last file update:  4-Dec-2017 17:56 (eg)
+  Last file update:  4-Dec-2017 18:17 (eg)
 -->
 
 
@@ -123,3 +123,20 @@ void loop () {
    state_off();
 }
 ```
+
+# Testing the define-application form 
+
+To run some tests with various Scheme implementation, you can type
+`make` in the current directory. This will try to launch the
+compilation of the files in the current directory with the Scheme
+implementations:
+
+- STklos
+- Gauche
+- Gnu Guile
+- Racket
+
+A bunch of files will be created in the OUT directory. Every file with
+the same prefix should have the same MD5 signature.
+
+To clean the directory: `make clean`
