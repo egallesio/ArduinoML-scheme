@@ -1,7 +1,7 @@
 <!--
             Author: Erick Gallesio
      Creation date: 30-Nov-2017 16:05
-  Last file update:  4-Dec-2017 18:17 (eg)
+  Last file update:  4-Dec-2017 18:25 (eg)
 -->
 
 
@@ -126,10 +126,10 @@ void loop () {
 
 # Testing the define-application form 
 
-To run some tests with various Scheme implementation, you can type
+To run some tests with various Scheme implementations, you can type
 `make` in the current directory. This will try to launch the
-compilation of the files in the current directory with the Scheme
-implementations:
+compilation of the files in the `Examples` directory with the
+following Scheme implementations:
 
 - STklos
 - Gauche
