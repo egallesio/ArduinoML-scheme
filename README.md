@@ -1,7 +1,7 @@
 <!--
             Author: Erick Gallesio
      Creation date: 30-Nov-2017 16:05
-  Last file update:  1-Dec-2017 17:52 (eg)
+  Last file update:  4-Dec-2017 17:56 (eg)
 -->
 
 
@@ -54,7 +54,7 @@ standard output) the arduino code for the file
 - for **STklos**
 
   ```bash
-  $ stklos  -l arduino.scm -f Examples/example1.scm 
+  $ stklos -c -l arduino.scm -f Examples/example1.scm 
   ```
 
 - for **Gauche**

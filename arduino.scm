@@ -3,37 +3,104 @@
 ;;;;
 ;;;;           Author: Erick Gallesio [eg@unice.fr]
 ;;;;    Creation date: 26-Oct-2017 17:16
-;;;; Last file update:  1-Dec-2017 17:46 (eg)
+;;;; Last file update:  4-Dec-2017 17:53 (eg)
 ;;;;
 
-(define-macro (define-application names . clauses)
+;; ======================================================================
+;;                    Compatibility functions
+;; ======================================================================
+(define keyword-get
+  (cond-expand
+   (stklos key-get)
+   (gauche (lambda (lst key default) (get-keyword key lst default)))
+   (else   (lambda (lst key default)
+             (if (pair? lst)
+                 (cond
+                   ((null? (cdr lst))
+                    (error "malformed list of keywords"))
+                   ((eq? (car lst) key)
+                    (cadr lst))
+                   (else
+                    (keyword-get (cddr lst) key default)))
+                 default)))))
+(define print
+  (cond-expand
+   ((or guile gauche)  (lambda args (apply format #t args)))
+   (else               printf)))
 
-  ;; ======================================================================
-  ;;                    Compatibility functions
-  ;; ======================================================================
+(define eprint
+  (cond-expand
+   ((or guile gauche)  (lambda args (display (apply format #f args) (current-error-port))))
+   (else               eprintf)))
 
-  (define keyword-get
-    (cond-expand
-     (stklos key-get)
-     (gauche (lambda (lst key default) (get-keyword key lst default)))
-     (else   (lambda (lst key default)
-               (if (pair? lst)
-                   (cond
-                     ((null? (cdr lst))
-                      (error "malformed list of keywords"))
-                     ((eq? (car lst) key)
-                      (cadr lst))
-                     (else
-                      (keyword-get (cddr lst) key default)))
-                   default)))))
-  (define print
-    (cond-expand
-     ((or guile gauche)    (lambda args (apply format #t args)))
-     (else                printf)))
+;; ======================================================================
+;;          A quick and dirty configuration check
+;; ======================================================================
+(define (check-config sensors actuators states transitions initial)
+  (let* ((bricks      (append sensors actuators))
+         (vars        (map car bricks))
+         (ports       (map cadr bricks))
+         (state-names (map car states)))
 
-  ;; ======================================================================
-  ;;                    Code generation
-  ;; ======================================================================
+    (define (check-list lst)
+      (or (null? lst)
+          (and (car lst) (check-list (cdr lst)))))
+
+    (define (err msg . args)
+      (apply eprint (string-append "ERROR: " msg "\n") args)
+      #f)
+
+    (define (check-no-duplicates msg lst)
+      (or (null? lst)
+          (if (member (car lst) (cdr lst))
+              (err "~A ~S is already used" msg (car lst))
+              (check-no-duplicates msg (cdr lst)))))
+
+    (define (check-initial initial)
+      (or (member initial state-names)
+          (if initial
+              (err "bad initial name: ~S" initial)
+              (err "initial state not defined"))))
+
+    (define (check-action action)
+      (if (not (and (= (length action) 3) (eq? (car action) 'set!)))
+          (err "malformed action: ~A" action)
+          (or (member (cadr action) vars)
+              (err "undeclared variable ~A in action" (cadr action)))))
+
+    (define (check-state state)
+      (check-list (map check-action (cdr state))))
+
+    (define (check-transition tr)
+      (if (not (and (= (length tr) 6)
+                    (eq? (list-ref tr 1) '->)
+                    (eq? (list-ref tr 3) 'when)))
+          (err "malformed transition: ~A" tr)
+          (and (or (member (list-ref tr 0) state-names)
+                   (err "from state not declared ~A" (list-ref tr 0)))
+               (or (member (list-ref tr 2) state-names)
+                   (err "from state not declared ~A" (list-ref tr 2)))
+               (or (member (list-ref tr 4) vars)
+                   (err "undeclared variable ~A in transition" (list-ref tr 4))))))
+    ;;
+    ;; check config starts here (return #t if configuration is OK, #f otherwise
+    ;;
+    (check-list
+     `( ,(check-no-duplicates "name" vars)              ;; Ckeck bricks
+        ,(check-no-duplicates "port" ports)
+
+        ,(check-initial initial)                        ;; Check initial
+
+        ,(check-no-duplicates "state" state-names)      ;; Checks states
+        ,@(map check-state states)
+
+        ,(map check-transition transitions)))))          ;; Check transitions
+
+
+;; ======================================================================
+;;                    Code generation
+;; ======================================================================
+(define (produce-code sensors actuators states transitions initial)
 
   (define (generate-header)
     (print "// File generated by arduinoML (Scheme)\n\n")
@@ -75,7 +142,7 @@
                   (generate-actions actions)
                   (print "  boolean guard =  millis() - time > debounce;\n")
                   (print "  if (digitalRead(~A) == ~A  && guard) {\n"
-                          (car when) (cadr when))
+                         (car when) (cadr when))
                   (print "    time = millis()\n")
                   (print "    state_~A();\n" to)
                   (print "  } else {\n")
@@ -89,17 +156,25 @@
     (print "   state_~A();\n" initial)
     (print "}\n"))
 
-  ;;;
-  ;;; Macro body starts here
-  ;;;
+  ;;
+  ;; produce-code starts here
+  ;;
+  (generate-header)
+  (generate-globals sensors actuators)
+  (generate-setup   sensors actuators)
+  (generate-states  states transitions)
+  (generate-loop    initial))
 
+
+;; ======================================================================
+;; DEFINE-APPLICATION MACRO
+;; ======================================================================
+(define-macro (define-application names . clauses)
   (let ((sensors     (keyword-get clauses ':sensors '()))
         (actuators   (keyword-get clauses ':actuators '()))
         (states      (keyword-get clauses ':states '()))
         (transitions (keyword-get clauses ':transitions '()))
-        (initial     (keyword-get clauses ':initial '())))
-    (generate-header)
-    (generate-globals sensors actuators)
-    (generate-setup   sensors actuators)
-    (generate-states  states transitions)
-    (generate-loop    initial)))
+        (initial     (keyword-get clauses ':initial #f)))
+
+    (when (check-config sensors actuators states transitions initial)
+      (produce-code sensors actuators states transitions initial))))
